@@ -1,0 +1,9 @@
+package uz.educenter.bot.state;
+
+public enum UserState {
+    NONE,
+    WAITING_APPLICATION_FULL_NAME,
+    WAITING_APPLICATION_PHONE,
+    WAITING_APPLICATION_MESSAGE,
+    WAITING_ADMIN_PASSWORD
+}
