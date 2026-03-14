@@ -2,6 +2,7 @@ package uz.educenter.bot.service;
 
 import uz.educenter.bot.model.Admin;
 import uz.educenter.bot.repository.AdminRepository;
+import uz.educenter.bot.util.PasswordUtil;
 
 public class AdminService {
 
@@ -26,6 +27,6 @@ public class AdminService {
             return false;
         }
 
-        return admin.getPasswordHash().equals(password);
+        return PasswordUtil.checkPassword(password, admin.getPasswordHash());
     }
 }
