@@ -12,11 +12,14 @@ public class Course {
     private String courseDuration;
     private Boolean isActive;
     private LocalDateTime createdAt;
+    private String detailsUrl;
+    private String courseType;
 
     public Course() {
     }
 
-    public Course(Long id, String name, String description, BigDecimal price, String courseDuration, Boolean isActive, LocalDateTime createdAt) {
+    public Course(Long id, String name, String description, BigDecimal price, String courseDuration,
+                  Boolean isActive, LocalDateTime createdAt, String detailsUrl, String courseType) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -24,6 +27,8 @@ public class Course {
         this.courseDuration = courseDuration;
         this.isActive = isActive;
         this.createdAt = createdAt;
+        this.detailsUrl = detailsUrl;
+        this.courseType = courseType;
     }
 
     public Long getId() {
@@ -82,6 +87,22 @@ public class Course {
         this.createdAt = createdAt;
     }
 
+    public String getDetailsUrl() {
+        return detailsUrl;
+    }
+
+    public void setDetailsUrl(String detailsUrl) {
+        this.detailsUrl = detailsUrl;
+    }
+
+    public String getCourseType() {
+        return courseType;
+    }
+
+    public void setCourseType(String courseType) {
+        this.courseType = courseType;
+    }
+
     @Override
     public String toString() {
         return "Course{" +
@@ -89,7 +110,9 @@ public class Course {
                 ", name='" + name + '\'' +
                 ", price=" + price +
                 ", courseDuration='" + courseDuration + '\'' +
+                ", courseType='" + courseType + '\'' +
                 ", isActive=" + isActive +
+                ", detailsUrl='" + detailsUrl + '\'' +
                 '}';
     }
 }

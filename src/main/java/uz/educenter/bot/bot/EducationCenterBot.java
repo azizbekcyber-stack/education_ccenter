@@ -331,36 +331,53 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         List<CourseGroup> groups = courseService.getActiveGroupsByCourseId(courseId);
 
         StringBuilder text = new StringBuilder();
-        text.append("📘 ").append(course.getName()).append("\n\n");
-        text.append("📝 ").append(course.getDescription()).append("\n");
-        text.append("💰 Narxi: ").append(course.getPrice().toPlainString()).append("\n");
-        text.append("⏳ Davomiyligi: ").append(course.getCourseDuration()).append("\n\n");
+        text.append("📘 <b>").append(escapeHtml(course.getName())).append("</b>\n\n");
+
+        if (course.getDescription() != null && !course.getDescription().isBlank()) {
+            text.append("<i>")
+                    .append(escapeHtml(course.getDescription()))
+                    .append("</i>\n\n");
+        }
+
+        text.append("💰 <b>Narxi:</b> ")
+                .append(formatPrice(course.getPrice()))
+                .append("\n");
+
+        text.append("⏳ <b>Davomiyligi:</b> ")
+                .append(escapeHtml(course.getCourseDuration()))
+                .append("\n");
+
+        text.append("📡 <b>Format:</b> ")
+                .append(formatCourseType(course.getCourseType()))
+                .append("\n\n");
 
         if (groups.isEmpty()) {
-            text.append("Hozircha aktiv guruhlar yo‘q.");
+            text.append("⚠️ Hozircha aktiv guruhlar yo'q.");
             sendMessage(chatId, text.toString());
             return;
         }
 
-        text.append("Mavjud guruhlar:\n");
+        text.append("👥 <b>Mavjud guruhlar:</b>\n");
+
         for (CourseGroup group : groups) {
             text.append("\n")
-                    .append("• ").append(group.getGroupName()).append("\n")
-                    .append("  Kunlar: ").append(group.getDaysText()).append("\n")
-                    .append("  Vaqt: ").append(group.getStartTime()).append(" - ").append(group.getEndTime()).append("\n")
-                    .append("  Sana: ").append(group.getStartDate()).append(" dan ").append(group.getEndDate()).append(" gacha\n");
+                    .append("<b>").append(escapeHtml(group.getGroupName())).append("</b>\n")
+                    .append("🗓 <b>Kunlar:</b> ").append(escapeHtml(shortDays(group.getDaysText()))).append("\n")
+                    .append("🕒 <b>Vaqt:</b> ").append(group.getStartTime()).append(" - ").append(group.getEndTime()).append("\n")
+                    .append("📅 <b>Muddat:</b> ").append(formatDate(group.getStartDate()))
+                    .append(" - ").append(formatDate(group.getEndDate())).append("\n");
         }
 
-        text.append("\nZayavka uchun kerakli guruhni tanlang.");
+        text.append("\nKerakli guruhni tanlang:");
 
-        sendMessage(chatId, text.toString(), KeyboardUtil.courseGroupsKeyboard(courseId, groups));
+        sendMessage(chatId, text.toString(), KeyboardUtil.courseDetailsKeyboard(course, groups));
     }
 
     private void showPrices(Long chatId) {
         List<Course> courses = courseService.getAllActiveCourses();
 
         if (courses.isEmpty()) {
-            sendMessage(chatId, "Kurslar topilmadi.");
+            sendMessage(chatId, " ❌ Kurslar topilmadi.");
             return;
         }
 
@@ -391,8 +408,8 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         String text = """
                 ☎️ Ustozlar bilan aloqa:
                 
-                1. %s
-                2. %s
+                1. 👨🏽‍🏫  %s
+                2. 👨🏽‍🏫  %s
                 """.formatted(teacher1, teacher2);
 
         sendMessage(chatId, text, KeyboardUtil.mainMenuKeyboard());
@@ -432,9 +449,9 @@ public class EducationCenterBot extends TelegramLongPollingBot {
 
     private void sendMainMenu(Long chatId) {
         String text = """
-                Assalomu alaykum.
-                
-                Kerakli bo‘limni tanlang:
+👋 Assalomu alaykum! Xush kelibsiz!
+
+Bizning xizmatimizdan foydalanish uchun quyidagi bo‘limlardan birini tanlang:
                 """;
         sendMessage(chatId, text, KeyboardUtil.mainMenuKeyboard());
     }
@@ -460,6 +477,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
         message.setText(text);
+        message.setParseMode("HTML");
 
         if (keyboard != null) {
             message.setReplyMarkup(keyboard);
@@ -471,6 +489,72 @@ public class EducationCenterBot extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
+
+
+    private String formatPrice(java.math.BigDecimal price) {
+        if (price == null) {
+            return "-";
+        }
+
+        java.text.DecimalFormatSymbols symbols = new java.text.DecimalFormatSymbols();
+        symbols.setGroupingSeparator(' ');
+
+        java.text.DecimalFormat decimalFormat = new java.text.DecimalFormat("#,###", symbols);
+        decimalFormat.setGroupingUsed(true);
+        decimalFormat.setMaximumFractionDigits(0);
+
+        return decimalFormat.format(price) + " so'm";
+    }
+
+    private String formatDate(java.time.LocalDate date) {
+        if (date == null) {
+            return "-";
+        }
+
+        java.time.format.DateTimeFormatter formatter =
+                java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+        return date.format(formatter);
+    }
+
+    private String formatCourseType(String courseType) {
+        if (courseType == null || courseType.isBlank()) {
+            return "Noma'lum";
+        }
+
+        return switch (courseType.trim().toUpperCase()) {
+            case "ONLINE" -> "🌐 Online";
+            case "OFFLINE" -> "🏫 Offline";
+            default -> courseType;
+        };
+    }
+
+    private String shortDays(String daysText) {
+        if (daysText == null || daysText.isBlank()) {
+            return "-";
+        }
+
+        return daysText
+                .replace("Dushanba", "Dush")
+                .replace("Seshanba", "Sesh")
+                .replace("Chorshanba", "Chor")
+                .replace("Payshanba", "Pay")
+                .replace("Juma", "Juma")
+                .replace("Shanba", "Shan")
+                .replace("Yakshanba", "Yak");
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) {
+            return "";
+        }
+
+        return text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+    }
+
 
     private void answerCallback(String callbackId, String text) {
         AnswerCallbackQuery answer = new AnswerCallbackQuery();

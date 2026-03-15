@@ -15,7 +15,7 @@ public class CourseRepository {
         List<Course> courses = new ArrayList<>();
 
         String sql = """
-                SELECT id, name, description, price, course_duration, is_active, created_at
+                SELECT id, name, description, price, course_duration, is_active, created_at, details_url, course_type
                 FROM courses
                 WHERE is_active = true
                 ORDER BY id
@@ -26,15 +26,7 @@ public class CourseRepository {
              ResultSet resultSet = preparedStatement.executeQuery()) {
 
             while (resultSet.next()) {
-                Course course = new Course();
-                course.setId(resultSet.getLong("id"));
-                course.setName(resultSet.getString("name"));
-                course.setDescription(resultSet.getString("description"));
-                course.setPrice(resultSet.getBigDecimal("price"));
-                course.setCourseDuration(resultSet.getString("course_duration"));
-                course.setIsActive(resultSet.getBoolean("is_active"));
-                course.setCreatedAt(resultSet.getTimestamp("created_at").toLocalDateTime());
-
+                Course course = mapRow(resultSet);
                 courses.add(course);
             }
 
@@ -47,7 +39,7 @@ public class CourseRepository {
 
     public Course findById(Long courseId) {
         String sql = """
-                SELECT id, name, description, price, course_duration, is_active, created_at
+                SELECT id, name, description, price, course_duration, is_active, created_at, details_url, course_type
                 FROM courses
                 WHERE id = ?
                 """;
@@ -59,15 +51,7 @@ public class CourseRepository {
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
-                    Course course = new Course();
-                    course.setId(resultSet.getLong("id"));
-                    course.setName(resultSet.getString("name"));
-                    course.setDescription(resultSet.getString("description"));
-                    course.setPrice(resultSet.getBigDecimal("price"));
-                    course.setCourseDuration(resultSet.getString("course_duration"));
-                    course.setIsActive(resultSet.getBoolean("is_active"));
-                    course.setCreatedAt(resultSet.getTimestamp("created_at").toLocalDateTime());
-                    return course;
+                    return mapRow(resultSet);
                 }
             }
 
@@ -76,5 +60,19 @@ public class CourseRepository {
         }
 
         return null;
+    }
+
+    private Course mapRow(ResultSet resultSet) throws Exception {
+        Course course = new Course();
+        course.setId(resultSet.getLong("id"));
+        course.setName(resultSet.getString("name"));
+        course.setDescription(resultSet.getString("description"));
+        course.setPrice(resultSet.getBigDecimal("price"));
+        course.setCourseDuration(resultSet.getString("course_duration"));
+        course.setIsActive(resultSet.getBoolean("is_active"));
+        course.setCreatedAt(resultSet.getTimestamp("created_at").toLocalDateTime());
+        course.setDetailsUrl(resultSet.getString("details_url"));
+        course.setCourseType(resultSet.getString("course_type"));
+        return course;
     }
 }

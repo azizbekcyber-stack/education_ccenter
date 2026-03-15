@@ -80,6 +80,35 @@ public class KeyboardUtil {
         return markup;
     }
 
+    public static InlineKeyboardMarkup courseDetailsKeyboard(Course course, List<CourseGroup> groups) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        for (CourseGroup group : groups) {
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(group.getGroupName() + " | " + group.getDaysText());
+            button.setCallbackData("group:" + course.getId() + ":" + group.getId());
+
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            row.add(button);
+            rows.add(row);
+        }
+
+        if (course.getDetailsUrl() != null && !course.getDetailsUrl().isBlank()) {
+            InlineKeyboardButton detailsButton = new InlineKeyboardButton();
+            detailsButton.setText("📖 Batafsil ma'lumot");
+            detailsButton.setUrl(course.getDetailsUrl());
+
+            List<InlineKeyboardButton> detailsRow = new ArrayList<>();
+            detailsRow.add(detailsButton);
+            rows.add(detailsRow);
+        }
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+
+
     public static InlineKeyboardMarkup courseGroupsKeyboard(Long courseId, List<CourseGroup> groups) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
