@@ -22,6 +22,7 @@ import uz.educenter.bot.service.CourseService;
 import uz.educenter.bot.service.UserService;
 import uz.educenter.bot.util.KeyboardUtil;
 import java.util.List;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 
 public class EducationCenterBot extends TelegramLongPollingBot {
 
@@ -104,6 +105,8 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         }
 
         if (BTN_MAIN_MENU.equals(text)) {
+            sessionManager.clearUserState(telegramId);
+            sessionManager.clearPendingApplication(telegramId);
             sendMainMenu(chatId);
             return;
         }
@@ -205,10 +208,20 @@ public class EducationCenterBot extends TelegramLongPollingBot {
 
             if (updated) {
                 answerCallback(callbackQuery.getId(), "VIEWED qilindi");
+
+                if (callbackQuery.getMessage() != null) {
+                    clearInlineKeyboard(
+                            chatId,
+                            callbackQuery.getMessage().getMessageId()
+                    );
+                }
+
                 sendMessage(chatId, "Zayavka #" + applicationId + " VIEWED qilindi.");
             } else {
                 answerCallback(callbackQuery.getId(), "Xatolik yuz berdi");
             }
+
+            return;
         }
     }
 
@@ -320,10 +333,18 @@ public class EducationCenterBot extends TelegramLongPollingBot {
             return "";
         }
 
-        String normalized = phone.replaceAll("\\s+", "");
+        String normalized = phone.trim();
 
-        if (!normalized.startsWith("+")) {
-            normalized = "+" + normalized;
+        if (normalized.startsWith("+")) {
+            normalized = "+" + normalized.substring(1).replaceAll("\\D", "");
+        } else {
+            normalized = normalized.replaceAll("\\D", "");
+
+            if (normalized.startsWith("00")) {
+                normalized = "+" + normalized.substring(2);
+            } else if (!normalized.isBlank()) {
+                normalized = "+" + normalized;
+            }
         }
 
         return normalized;
@@ -524,14 +545,34 @@ public class EducationCenterBot extends TelegramLongPollingBot {
             CourseGroup group = courseService.getCourseGroupById(application.getCourseGroupId());
             uz.educenter.bot.model.User user = userService.findById(application.getUserId());
 
+            String courseName = course != null
+                    ? escapeHtml(course.getName())
+                    : String.valueOf(application.getCourseId());
+
+            String groupName = group != null
+                    ? escapeHtml(group.getGroupName())
+                    : String.valueOf(application.getCourseGroupId());
+
+            String applicationFullName = application.getFullName() == null || application.getFullName().isBlank()
+                    ? "-"
+                    : escapeHtml(application.getFullName());
+
+            String applicationPhone = application.getPhone() == null || application.getPhone().isBlank()
+                    ? "-"
+                    : escapeHtml(application.getPhone());
+
+            String applicationMessage = application.getMessage() == null || application.getMessage().isBlank()
+                    ? "-"
+                    : escapeHtml(application.getMessage());
+
             StringBuilder text = new StringBuilder();
             text.append("🆔 Ariza ID: ").append(application.getId()).append("\n");
-            text.append("👤 Ism: ").append(application.getFullName()).append("\n");
+            text.append("👤 Ism: ").append(applicationFullName).append("\n");
             text.append("🔗 Telegram: ").append(formatTelegramUsername(user)).append("\n");
-            text.append("📞 Telefon: ").append(application.getPhone()).append("\n");
-            text.append("📚 Kurs: ").append(course != null ? course.getName() : application.getCourseId()).append("\n");
-            text.append("👥 Guruh: ").append(group != null ? group.getGroupName() : application.getCourseGroupId()).append("\n");
-            text.append("💬 Izoh: ").append(application.getMessage() == null ? "-" : application.getMessage()).append("\n");
+            text.append("📞 Telefon: ").append(applicationPhone).append("\n");
+            text.append("📚 Kurs: ").append(courseName).append("\n");
+            text.append("👥 Guruh: ").append(groupName).append("\n");
+            text.append("💬 Izoh: ").append(applicationMessage).append("\n");
             text.append("📌 Status: ").append(application.getStatus()).append("\n");
             text.append("🕒 Vaqt: ").append(application.getCreatedAt()).append("\n");
 
@@ -553,8 +594,11 @@ Bizning xizmatimizdan foydalanish uchun quyidagi bo‘limlardan birini tanlang:
     }
 
     private boolean isValidPhone(String phone) {
-        String normalized = phone.replaceAll("\\s+", "");
-        return normalized.matches("^\\+?\\d{9,15}$");
+        if (phone == null || phone.isBlank()) {
+            return false;
+        }
+
+        return phone.matches("^\\+\\d{9,15}$");
     }
 
     private String buildTelegramName(org.telegram.telegrambots.meta.api.objects.User user){
@@ -659,6 +703,19 @@ Bizning xizmatimizdan foydalanish uchun quyidagi bo‘limlardan birini tanlang:
         return "@" + escapeHtml(user.getUsername());
     }
 
+
+    private void clearInlineKeyboard(Long chatId, Integer messageId) {
+        EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
+        editMessageReplyMarkup.setChatId(chatId.toString());
+        editMessageReplyMarkup.setMessageId(messageId);
+        editMessageReplyMarkup.setReplyMarkup(null);
+
+        try {
+            execute(editMessageReplyMarkup);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     private void answerCallback(String callbackId, String text) {
         AnswerCallbackQuery answer = new AnswerCallbackQuery();

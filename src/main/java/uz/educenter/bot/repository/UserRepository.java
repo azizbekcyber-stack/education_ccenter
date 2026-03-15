@@ -2,7 +2,7 @@ package uz.educenter.bot.repository;
 
 import uz.educenter.bot.config.DatabaseConfig;
 import uz.educenter.bot.model.User;
-
+import java.util.Objects;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -113,7 +113,28 @@ public class UserRepository {
 
         return false;
     }
+    public boolean updateTelegramProfile(Long userId, String fullName, String username) {
+        String sql = """
+            UPDATE users
+            SET full_name = ?, username = ?
+            WHERE id = ?
+            """;
 
+        try (Connection connection = DatabaseConfig.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+
+            preparedStatement.setString(1, fullName);
+            preparedStatement.setString(2, username);
+            preparedStatement.setLong(3, userId);
+
+            return preparedStatement.executeUpdate() > 0;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
     private User mapRow(ResultSet resultSet) throws Exception {
         User user = new User();
         user.setId(resultSet.getLong("id"));

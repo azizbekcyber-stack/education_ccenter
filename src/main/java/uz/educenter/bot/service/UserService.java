@@ -3,6 +3,8 @@ package uz.educenter.bot.service;
 import uz.educenter.bot.model.User;
 import uz.educenter.bot.repository.UserRepository;
 
+import java.util.Objects;
+
 public class UserService {
 
     private final UserRepository userRepository;
@@ -15,6 +17,15 @@ public class UserService {
         User user = userRepository.findByTelegramId(telegramId);
 
         if (user != null) {
+            boolean fullNameChanged = !Objects.equals(user.getFullName(), fullName);
+            boolean usernameChanged = !Objects.equals(user.getUsername(), username);
+
+            if (fullNameChanged || usernameChanged) {
+                userRepository.updateTelegramProfile(user.getId(), fullName, username);
+                User updatedUser = userRepository.findById(user.getId());
+                return updatedUser != null ? updatedUser : user;
+            }
+
             return user;
         }
 
