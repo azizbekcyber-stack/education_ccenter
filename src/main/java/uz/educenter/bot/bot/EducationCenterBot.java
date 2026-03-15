@@ -1,5 +1,5 @@
 package uz.educenter.bot.bot;
-
+import org.telegram.telegrambots.meta.api.objects.Contact;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -76,8 +76,15 @@ public class EducationCenterBot extends TelegramLongPollingBot {
                 return;
             }
 
-            if (update.hasMessage() && update.getMessage().hasText()) {
-                handleTextMessage(update.getMessage());
+            if (update.hasMessage()) {
+                if (update.getMessage().hasContact()) {
+                    handleContactMessage(update.getMessage());
+                    return;
+                }
+
+                if (update.getMessage().hasText()) {
+                    handleTextMessage(update.getMessage());
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -244,12 +251,22 @@ public class EducationCenterBot extends TelegramLongPollingBot {
 
         pendingApplication.setFullName(fullName);
         sessionManager.setUserState(telegramId, UserState.WAITING_APPLICATION_PHONE);
-        sendMessage(chatId, "Telefon raqamingizni kiriting. Masalan: +998901234567");
+        sendMessage(
+                chatId,
+                "Telefon raqamingizni yuboring.\nPastdagi tugmani bosing yoki qo‘lda kiriting.\nMasalan: +998901234567",
+                KeyboardUtil.phoneRequestKeyboard()
+        );
     }
 
     private void handleApplicationPhone(Long chatId, Long telegramId, String phone) {
-        if (!isValidPhone(phone)) {
-            sendMessage(chatId, "Telefon format noto‘g‘ri. Masalan: +998901234567");
+        String normalizedPhone = normalizePhone(phone);
+
+        if (!isValidPhone(normalizedPhone)) {
+            sendMessage(
+                    chatId,
+                    "Telefon format noto‘g‘ri. Pastdagi tugma orqali yuboring yoki to‘g‘ri formatda kiriting.\nMasalan: +998901234567",
+                    KeyboardUtil.phoneRequestKeyboard()
+            );
             return;
         }
 
@@ -260,11 +277,58 @@ public class EducationCenterBot extends TelegramLongPollingBot {
             return;
         }
 
-        pendingApplication.setPhone(phone);
+        pendingApplication.setPhone(normalizedPhone);
         sessionManager.setUserState(telegramId, UserState.WAITING_APPLICATION_MESSAGE);
-        sendMessage(chatId, "Qo‘shimcha izoh yozing. Agar izoh bo‘lmasa, - yuboring:");
+        sendMessage(chatId, "Qo‘shimcha izoh yozing. Agar izoh bo‘lmasa, - yuboring:", KeyboardUtil.removeKeyboard());
     }
 
+
+    private void handleContactMessage(Message message) {
+        Long chatId = message.getChatId();
+        Long telegramId = message.getFrom().getId();
+
+        if (sessionManager.getUserState(telegramId) != UserState.WAITING_APPLICATION_PHONE) {
+            sendMessage(chatId, "Hozir telefon raqami so‘ralmagan.", KeyboardUtil.mainMenuKeyboard());
+            return;
+        }
+
+        Contact contact = message.getContact();
+        if (contact == null || contact.getPhoneNumber() == null || contact.getPhoneNumber().isBlank()) {
+            sendMessage(
+                    chatId,
+                    "Telefon raqamini olishning imkoni bo‘lmadi. Qayta urinib ko‘ring yoki qo‘lda kiriting.",
+                    KeyboardUtil.phoneRequestKeyboard()
+            );
+            return;
+        }
+
+        if (contact.getUserId() != null && !telegramId.equals(contact.getUserId())) {
+            sendMessage(
+                    chatId,
+                    "Iltimos, aynan o‘zingizning raqamingizni yuboring.",
+                    KeyboardUtil.phoneRequestKeyboard()
+            );
+            return;
+        }
+
+        handleApplicationPhone(chatId, telegramId, contact.getPhoneNumber());
+    }
+
+
+
+    private String normalizePhone(String phone) {
+        if (phone == null) {
+            return "";
+        }
+
+        String normalized = phone.replaceAll("\\s+", "");
+
+        if (!normalized.startsWith("+")) {
+            normalized = "+" + normalized;
+        }
+
+        return normalized;
+    }
     private void handleApplicationMessage(Long chatId, Long telegramId, User telegramUser, String messageText) {
         PendingApplication pendingApplication = sessionManager.getPendingApplication(telegramId);
 
@@ -377,20 +441,51 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         List<Course> courses = courseService.getAllActiveCourses();
 
         if (courses.isEmpty()) {
-            sendMessage(chatId, " ❌ Kurslar topilmadi.");
+            sendMessage(chatId, "❌ Hozircha aktiv kurslar topilmadi.", KeyboardUtil.mainMenuKeyboard());
             return;
         }
 
-        StringBuilder text = new StringBuilder("💰 Kurs narxlari:\n\n");
-        for (Course course : courses) {
-            text.append("• ")
-                    .append(course.getName())
-                    .append(" — ")
-                    .append(course.getPrice().toPlainString())
+        sendMessage(chatId, buildPricesMessage(courses), KeyboardUtil.mainMenuKeyboard());
+    }
+
+
+    private String buildPricesMessage(List<Course> courses) {
+        StringBuilder text = new StringBuilder();
+
+        text.append("💰 <b>Kurs narxlari</b>\n\n");
+        text.append("Quyida markazimizdagi faol kurslar narxlari keltirilgan:\n\n");
+
+        for (int i = 0; i < courses.size(); i++) {
+            Course course = courses.get(i);
+
+            text.append("<b>")
+                    .append(i + 1)
+                    .append(". ")
+                    .append(escapeHtml(course.getName()))
+                    .append("</b>\n");
+
+            text.append("📡 <b>Format:</b> ")
+                    .append(formatCourseType(course.getCourseType()))
                     .append("\n");
+
+            text.append("⏳ <b>Davomiyligi:</b> ")
+                    .append(course.getCourseDuration() == null || course.getCourseDuration().isBlank()
+                            ? "-"
+                            : escapeHtml(course.getCourseDuration()))
+                    .append("\n");
+
+            text.append("💵 <b>Narxi:</b> ")
+                    .append(formatPrice(course.getPrice()))
+                    .append("\n");
+
+            if (i < courses.size() - 1) {
+                text.append("\n");
+            }
         }
 
-        sendMessage(chatId, text.toString(), KeyboardUtil.mainMenuKeyboard());
+        text.append("\n<i>To‘liq ma’lumot va guruh tanlash uchun “📚 Kurslar” bo‘limidan foydalaning.</i>");
+
+        return text.toString();
     }
 
     private void showLocation(Long chatId) {

@@ -6,6 +6,14 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import uz.educenter.bot.model.Course;
 import uz.educenter.bot.model.CourseGroup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +68,30 @@ public class KeyboardUtil {
 
         markup.setKeyboard(keyboard);
         return markup;
+    }
+
+    public static ReplyKeyboard phoneRequestKeyboard() {
+        KeyboardButton contactButton = new KeyboardButton("📱 Raqamni yuborish");
+        contactButton.setRequestContact(true);
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(contactButton);
+
+        List<KeyboardRow> rows = new ArrayList<>();
+        rows.add(row);
+
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        keyboardMarkup.setResizeKeyboard(true);
+        keyboardMarkup.setOneTimeKeyboard(true);
+        keyboardMarkup.setKeyboard(rows);
+
+        return keyboardMarkup;
+    }
+
+    public static ReplyKeyboard removeKeyboard() {
+        ReplyKeyboardRemove removeKeyboard = new ReplyKeyboardRemove();
+        removeKeyboard.setRemoveKeyboard(true);
+        return removeKeyboard;
     }
 
     public static InlineKeyboardMarkup coursesKeyboard(List<Course> courses) {
