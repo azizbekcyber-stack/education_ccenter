@@ -151,7 +151,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
 
             if (BTN_ADMIN_LOGOUT.equals(text)) {
                 sessionManager.logoutAdmin(telegramId);
-                sendMessage(chatId, "Admin session yopildi.", KeyboardUtil.mainMenuKeyboard());
+                sendMessage(chatId, "Admin session yopildi. ✅", KeyboardUtil.mainMenuKeyboard());
                 return;
             }
         }
@@ -162,10 +162,10 @@ public class EducationCenterBot extends TelegramLongPollingBot {
             case BTN_LOCATION -> showLocation(chatId);
             case BTN_CONTACT -> showContacts(chatId);
             case BTN_APPLY -> {
-                sendMessage(chatId, "Zayavka uchun avval kursni tanlang:");
+                sendMessage(chatId, "Zayavka uchun avval kursni tanlang \uD83D\uDC47:");
                 showCourses(chatId);
             }
-            default -> sendMessage(chatId, "Kerakli bo‘limni tugma orqali tanlang.", KeyboardUtil.mainMenuKeyboard());
+            default -> sendMessage(chatId, "Kerakli bo‘limni tugma orqali tanlang. \uD83D\uDC47", KeyboardUtil.mainMenuKeyboard());
         }
     }
 
@@ -177,7 +177,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         if (data.startsWith("course:")) {
             Long courseId = Long.parseLong(data.split(":")[1]);
             showCourseDetails(chatId, courseId);
-            answerCallback(callbackQuery.getId(), "Kurs tanlandi");
+            answerCallback(callbackQuery.getId(), "Kurs tanlandi ✅");
             return;
         }
 
@@ -192,14 +192,14 @@ public class EducationCenterBot extends TelegramLongPollingBot {
             pendingApplication.setCourseGroupId(groupId);
 
             sessionManager.setUserState(telegramId, UserState.WAITING_APPLICATION_FULL_NAME);
-            sendMessage(chatId, "Ism-familyangizni kiriting:");
-            answerCallback(callbackQuery.getId(), "Guruh tanlandi");
+            sendMessage(chatId, "Ism-familyangizni kiriting: ⌨");
+            answerCallback(callbackQuery.getId(), "Guruh tanlandi \uD83C\uDF89");
             return;
         }
 
         if (data.startsWith("app_viewed:")) {
             if (!sessionManager.isAdminAuthenticated(telegramId)) {
-                answerCallback(callbackQuery.getId(), "Ruxsat yo‘q");
+                answerCallback(callbackQuery.getId(), "\uD83D\uDEA8 Ruxsat yo‘q ");
                 return;
             }
 
@@ -207,7 +207,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
             boolean updated = applicationService.markAsViewed(applicationId);
 
             if (updated) {
-                answerCallback(callbackQuery.getId(), "VIEWED qilindi");
+                answerCallback(callbackQuery.getId(), "VIEWED qilindi \uD83D\uDC4C");
 
                 if (callbackQuery.getMessage() != null) {
                     clearInlineKeyboard(
@@ -216,9 +216,9 @@ public class EducationCenterBot extends TelegramLongPollingBot {
                     );
                 }
 
-                sendMessage(chatId, "Zayavka #" + applicationId + " VIEWED qilindi.");
+                sendMessage(chatId, "Zayavka #" + applicationId + " VIEWED qilindi. \uD83D\uDC4C");
             } else {
-                answerCallback(callbackQuery.getId(), "Xatolik yuz berdi");
+                answerCallback(callbackQuery.getId(), "\uD83D\uDEA8 Xatolik yuz berdi ");
             }
 
             return;
@@ -227,36 +227,36 @@ public class EducationCenterBot extends TelegramLongPollingBot {
 
     private void handleAdminEntry(Long chatId, Long telegramId) {
         if (!adminService.isAllowedAdmin(telegramId)) {
-            sendMessage(chatId, "Siz admin sifatida ro‘yxatdan o‘tmagansiz.", KeyboardUtil.mainMenuKeyboard());
+            sendMessage(chatId, "Siz admin sifatida ro‘yxatdan o‘tmagansiz. ❌", KeyboardUtil.mainMenuKeyboard());
             return;
         }
 
         sessionManager.setUserState(telegramId, UserState.WAITING_ADMIN_PASSWORD);
-        sendMessage(chatId, "Admin parolini kiriting:");
+        sendMessage(chatId, "Admin parolini kiriting: \uD83D\uDD11");
     }
 
     private void handleAdminPassword(Long chatId, Long telegramId, String password) {
         boolean authenticated = adminService.authenticate(telegramId, password);
 
         if (!authenticated) {
-            sendMessage(chatId, "Parol noto‘g‘ri. Qayta urinib ko‘ring:");
+            sendMessage(chatId, "❌ Parol noto‘g‘ri. Qayta urinib ko‘ring:");
             return;
         }
 
         sessionManager.clearUserState(telegramId);
         sessionManager.authenticateAdmin(telegramId);
-        sendMessage(chatId, "Admin panelga xush kelibsiz.", KeyboardUtil.adminMenuKeyboard());
+        sendMessage(chatId, "\uD83E\uDD1D Admin panelga xush kelibsiz.", KeyboardUtil.adminMenuKeyboard());
     }
 
     private void handleApplicationFullName(Long chatId, Long telegramId, String fullName) {
         if (fullName.isBlank()) {
-            sendMessage(chatId, "Ism-familya bo‘sh bo‘lmasligi kerak. Qayta kiriting:");
+            sendMessage(chatId, "❌ Ism-familya bo‘sh bo‘lmasligi kerak. Qayta kiriting:");
             return;
         }
 
         PendingApplication pendingApplication = sessionManager.getPendingApplication(telegramId);
         if (pendingApplication == null) {
-            sendMessage(chatId, "Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.mainMenuKeyboard());
+            sendMessage(chatId, "\uD83D\uDEA8 Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.mainMenuKeyboard());
             sessionManager.clearUserState(telegramId);
             return;
         }
@@ -265,7 +265,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         sessionManager.setUserState(telegramId, UserState.WAITING_APPLICATION_PHONE);
         sendMessage(
                 chatId,
-                "Telefon raqamingizni yuboring.\nPastdagi tugmani bosing yoki qo‘lda kiriting.\nMasalan: +998901234567",
+                "Telefon raqamingizni yuboring.\n \uD83D\uDCDE Pastdagi tugmani bosing yoki qo‘lda kiriting.\nMasalan: +998901234567",
                 KeyboardUtil.phoneRequestKeyboard()
         );
     }
@@ -276,7 +276,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         if (!isValidPhone(normalizedPhone)) {
             sendMessage(
                     chatId,
-                    "Telefon format noto‘g‘ri. Pastdagi tugma orqali yuboring yoki to‘g‘ri formatda kiriting.\nMasalan: +998901234567",
+                    "❌ Telefon format noto‘g‘ri. Pastdagi tugma orqali yuboring yoki to‘g‘ri formatda kiriting.\nMasalan: +998901234567",
                     KeyboardUtil.phoneRequestKeyboard()
             );
             return;
@@ -284,14 +284,14 @@ public class EducationCenterBot extends TelegramLongPollingBot {
 
         PendingApplication pendingApplication = sessionManager.getPendingApplication(telegramId);
         if (pendingApplication == null) {
-            sendMessage(chatId, "Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.mainMenuKeyboard());
+            sendMessage(chatId, "\uD83D\uDEA8 Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.mainMenuKeyboard());
             sessionManager.clearUserState(telegramId);
             return;
         }
 
         pendingApplication.setPhone(normalizedPhone);
         sessionManager.setUserState(telegramId, UserState.WAITING_APPLICATION_MESSAGE);
-        sendMessage(chatId, "Qo‘shimcha izoh yozing. Agar izoh bo‘lmasa, - yuboring:", KeyboardUtil.removeKeyboard());
+        sendMessage(chatId, "\uD83D\uDCAC Qo‘shimcha izoh yozing. Agar izoh bo‘lmasa, - yuboring:", KeyboardUtil.removeKeyboard());
     }
 
 
@@ -300,7 +300,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         Long telegramId = message.getFrom().getId();
 
         if (sessionManager.getUserState(telegramId) != UserState.WAITING_APPLICATION_PHONE) {
-            sendMessage(chatId, "Hozir telefon raqami so‘ralmagan.", KeyboardUtil.mainMenuKeyboard());
+            sendMessage(chatId, "\uD83D\uDEA8 Hozir telefon raqami so‘ralmagan.", KeyboardUtil.mainMenuKeyboard());
             return;
         }
 
@@ -308,7 +308,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         if (contact == null || contact.getPhoneNumber() == null || contact.getPhoneNumber().isBlank()) {
             sendMessage(
                     chatId,
-                    "Telefon raqamini olishning imkoni bo‘lmadi. Qayta urinib ko‘ring yoki qo‘lda kiriting.",
+                    "\uD83D\uDEA8 Telefon raqamini olishning imkoni bo‘lmadi. Qayta urinib ko‘ring yoki qo‘lda kiriting.",
                     KeyboardUtil.phoneRequestKeyboard()
             );
             return;
@@ -317,7 +317,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         if (contact.getUserId() != null && !telegramId.equals(contact.getUserId())) {
             sendMessage(
                     chatId,
-                    "Iltimos, aynan o‘zingizning raqamingizni yuboring.",
+                    "\uD83D\uDE4F Iltimos, aynan o‘zingizning raqamingizni yuboring.",
                     KeyboardUtil.phoneRequestKeyboard()
             );
             return;
@@ -353,7 +353,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         PendingApplication pendingApplication = sessionManager.getPendingApplication(telegramId);
 
         if (pendingApplication == null) {
-            sendMessage(chatId, "Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.mainMenuKeyboard());
+            sendMessage(chatId, "\uD83D\uDEA8 Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.mainMenuKeyboard());
             sessionManager.clearUserState(telegramId);
             return;
         }
@@ -384,12 +384,12 @@ public class EducationCenterBot extends TelegramLongPollingBot {
 
             sendMessage(
                     chatId,
-                    "Zayavkangiz qabul qilindi.\nAriza ID: " + savedApplication.getId(),
+                    "✅ Zayavkangiz qabul qilindi.\nAriza ID: " + savedApplication.getId(),
                     KeyboardUtil.mainMenuKeyboard()
             );
         } catch (Exception e) {
             e.printStackTrace();
-            sendMessage(chatId, "Zayavkani saqlashda xatolik bo‘ldi.");
+            sendMessage(chatId, "❌ Zayavkani saqlashda xatolik bo‘ldi.");
         }
     }
 
@@ -397,18 +397,18 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         List<Course> courses = courseService.getAllActiveCourses();
 
         if (courses.isEmpty()) {
-            sendMessage(chatId, "Hozircha aktiv kurslar yo‘q.");
+            sendMessage(chatId, "Hozircha aktiv kurslar yo‘q.❌");
             return;
         }
 
-        sendMessage(chatId, "Kurslardan birini tanlang:", KeyboardUtil.coursesKeyboard(courses));
+        sendMessage(chatId, "Kurslardan birini tanlang: \uD83D\uDC47", KeyboardUtil.coursesKeyboard(courses));
     }
 
     private void showCourseDetails(Long chatId, Long courseId) {
         Course course = courseService.getCourseById(courseId);
 
         if (course == null) {
-            sendMessage(chatId, "Kurs topilmadi.");
+            sendMessage(chatId, "Kurs topilmadi. ❌");
             return;
         }
 
@@ -536,7 +536,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
                 : applicationService.getAllApplications();
 
         if (applications.isEmpty()) {
-            sendMessage(chatId, "Zayavkalar topilmadi.", KeyboardUtil.adminMenuKeyboard());
+            sendMessage(chatId, "❌ Yangi Zayavkalar topilmadi.", KeyboardUtil.adminMenuKeyboard());
             return;
         }
 
@@ -588,7 +588,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         String text = """
 👋 Assalomu alaykum! Xush kelibsiz!
 
-Bizning xizmatimizdan foydalanish uchun quyidagi bo‘limlardan birini tanlang:
+Bizning xizmatimizdan foydalanish uchun quyidagi bo‘limlardan birini tanlang: 
                 """;
         sendMessage(chatId, text, KeyboardUtil.mainMenuKeyboard());
     }
