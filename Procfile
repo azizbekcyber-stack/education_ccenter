@@ -1,1 +1,1 @@
-worker: java -jar target/education-center-bot.jar
+worker: java -jar target/education_center_bk-1.0-SNAPSHOT.jar
