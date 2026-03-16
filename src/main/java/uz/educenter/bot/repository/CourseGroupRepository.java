@@ -51,6 +51,46 @@ public class CourseGroupRepository {
 
         return groups;
     }
+    public CourseGroup save(CourseGroup courseGroup) {
+        String sql = """
+            INSERT INTO course_groups (
+                course_id,
+                group_name,
+                days_text,
+                start_time,
+                end_time,
+                start_date,
+                end_date,
+                is_active
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id, course_id, group_name, days_text, start_time, end_time, start_date, end_date, is_active, created_at
+            """;
+
+        try (Connection connection = DatabaseConfig.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+
+            preparedStatement.setLong(1, courseGroup.getCourseId());
+            preparedStatement.setString(2, courseGroup.getGroupName());
+            preparedStatement.setString(3, courseGroup.getDaysText());
+            preparedStatement.setTime(4, java.sql.Time.valueOf(courseGroup.getStartTime()));
+            preparedStatement.setTime(5, java.sql.Time.valueOf(courseGroup.getEndTime()));
+            preparedStatement.setDate(6, java.sql.Date.valueOf(courseGroup.getStartDate()));
+            preparedStatement.setDate(7, java.sql.Date.valueOf(courseGroup.getEndDate()));
+            preparedStatement.setBoolean(8, courseGroup.getIsActive());
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    return mapRow(resultSet);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
 
     public CourseGroup findById(Long groupId) {
         String sql = """
@@ -88,5 +128,21 @@ public class CourseGroupRepository {
         }
 
         return null;
+    }
+
+
+    private CourseGroup mapRow(ResultSet resultSet) throws Exception {
+        CourseGroup group = new CourseGroup();
+        group.setId(resultSet.getLong("id"));
+        group.setCourseId(resultSet.getLong("course_id"));
+        group.setGroupName(resultSet.getString("group_name"));
+        group.setDaysText(resultSet.getString("days_text"));
+        group.setStartTime(resultSet.getTime("start_time").toLocalTime());
+        group.setEndTime(resultSet.getTime("end_time").toLocalTime());
+        group.setStartDate(resultSet.getDate("start_date").toLocalDate());
+        group.setEndDate(resultSet.getDate("end_date").toLocalDate());
+        group.setIsActive(resultSet.getBoolean("is_active"));
+        group.setCreatedAt(resultSet.getTimestamp("created_at").toLocalDateTime());
+        return group;
     }
 }

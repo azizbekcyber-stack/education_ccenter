@@ -60,11 +60,15 @@ public class KeyboardUtil {
         row1.add("📋 Barcha zayavkalar");
 
         KeyboardRow row2 = new KeyboardRow();
-        row2.add("🚪 Admin chiqish");
-        row2.add("🏠 Bosh menu");
+        row2.add("➕ Yangi guruh qo‘shish");
+
+        KeyboardRow row3 = new KeyboardRow();
+        row3.add("🏠 Bosh menu");
+        row3.add("🚪 Admin chiqish");
 
         keyboard.add(row1);
         keyboard.add(row2);
+        keyboard.add(row3);
 
         markup.setKeyboard(keyboard);
         return markup;
@@ -214,6 +218,27 @@ public class KeyboardUtil {
         keyboardMarkup.setKeyboard(rows);
 
         return keyboardMarkup;
+    }
+
+    public static InlineKeyboardMarkup adminGroupConfirmKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        InlineKeyboardButton saveButton = new InlineKeyboardButton();
+        saveButton.setText("✅ Saqlash");
+        saveButton.setCallbackData("admin_group_save:yes");
+
+        InlineKeyboardButton cancelButton = new InlineKeyboardButton();
+        cancelButton.setText("❌ Bekor qilish");
+        cancelButton.setCallbackData("admin_group_save:no");
+
+        List<InlineKeyboardButton> row = new ArrayList<>();
+        row.add(saveButton);
+        row.add(cancelButton);
+
+        rows.add(row);
+        markup.setKeyboard(rows);
+        return markup;
     }
 
     public static InlineKeyboardMarkup applicationActionsKeyboard(Long applicationId) {

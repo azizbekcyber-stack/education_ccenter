@@ -22,6 +22,9 @@ import uz.educenter.bot.service.UserService;
 import uz.educenter.bot.util.KeyboardUtil;
 import java.util.List;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import uz.educenter.bot.state.PendingCourseGroup;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 public class EducationCenterBot extends TelegramLongPollingBot {
 
@@ -37,6 +40,7 @@ public class EducationCenterBot extends TelegramLongPollingBot {
     private static final String BTN_ADMIN_LOGOUT = "🚪 Admin chiqish";
     private static final String BTN_MAIN_MENU = "🏠 Bosh menu";
     private static final String BTN_CANCEL = "❌ Bekor qilish";
+    private static final String BTN_ADD_GROUP = "➕ Yangi guruh qo‘shish";
     private final String botUsername;
     private final String botToken;
 
@@ -115,13 +119,51 @@ public class EducationCenterBot extends TelegramLongPollingBot {
                 sessionManager.clearUserState(telegramId);
                 sessionManager.clearPendingApplication(telegramId);
                 sendMessage(chatId, "Jarayon bekor qilindi. ✅", KeyboardUtil.mainMenuKeyboard());
-            } else {
-                sendMessage(chatId, "Hozir bekor qilinadigan faol jarayon yo‘q.", KeyboardUtil.mainMenuKeyboard());
+                return;
             }
+
+            if (isAdminNewGroupFlowActive(telegramId)) {
+                sessionManager.clearUserState(telegramId);
+                sessionManager.clearPendingCourseGroup(telegramId);
+                sendMessage(chatId, "Yangi guruh yaratish jarayoni bekor qilindi. ✅", KeyboardUtil.adminMenuKeyboard());
+                return;
+            }
+
+            sendMessage(chatId, "Hozir bekor qilinadigan faol jarayon yo‘q.", KeyboardUtil.mainMenuKeyboard());
             return;
         }
 
+
         UserState currentState = sessionManager.getUserState(telegramId);
+        if (currentState == UserState.WAITING_ADMIN_NEW_GROUP_NAME) {
+            handleAdminNewGroupName(chatId, telegramId, text);
+            return;
+        }
+
+        if (currentState == UserState.WAITING_ADMIN_NEW_GROUP_DAYS) {
+            handleAdminNewGroupDays(chatId, telegramId, text);
+            return;
+        }
+
+        if (currentState == UserState.WAITING_ADMIN_NEW_GROUP_START_TIME) {
+            handleAdminNewGroupStartTime(chatId, telegramId, text);
+            return;
+        }
+
+        if (currentState == UserState.WAITING_ADMIN_NEW_GROUP_END_TIME) {
+            handleAdminNewGroupEndTime(chatId, telegramId, text);
+            return;
+        }
+
+        if (currentState == UserState.WAITING_ADMIN_NEW_GROUP_START_DATE) {
+            handleAdminNewGroupStartDate(chatId, telegramId, text);
+            return;
+        }
+
+        if (currentState == UserState.WAITING_ADMIN_NEW_GROUP_END_DATE) {
+            handleAdminNewGroupEndDate(chatId, telegramId, text);
+            return;
+        }
 
         if (isApplicationInputState(currentState) && isBlockedDuringApplicationFlow(text)) {
             sendMessage(
@@ -170,6 +212,11 @@ public class EducationCenterBot extends TelegramLongPollingBot {
                 return;
             }
 
+            if (BTN_ADD_GROUP.equals(text)) {
+                startAdminAddGroupFlow(chatId, telegramId);
+                return;
+            }
+
             if (BTN_ADMIN_LOGOUT.equals(text)) {
                 sessionManager.logoutAdmin(telegramId);
                 sendMessage(chatId, "Admin session yopildi. ✅", KeyboardUtil.mainMenuKeyboard());
@@ -195,8 +242,96 @@ public class EducationCenterBot extends TelegramLongPollingBot {
         Long telegramId = callbackQuery.getFrom().getId();
         String data = callbackQuery.getData();
 
+        if (data.startsWith("admin_group_save:")) {
+            if (!sessionManager.isAdminAuthenticated(telegramId)) {
+                answerCallback(callbackQuery.getId(), "🚫 Ruxsat yo‘q");
+                return;
+            }
+
+            String decision = data.split(":")[1];
+
+            if (callbackQuery.getMessage() != null) {
+                clearInlineKeyboard(chatId, callbackQuery.getMessage().getMessageId());
+            }
+
+            if ("no".equals(decision)) {
+                sessionManager.clearPendingCourseGroup(telegramId);
+                answerCallback(callbackQuery.getId(), "Bekor qilindi");
+                sendMessage(chatId, "Yangi guruh yaratish bekor qilindi.", KeyboardUtil.adminMenuKeyboard());
+                return;
+            }
+
+            PendingCourseGroup pendingCourseGroup = sessionManager.getPendingCourseGroup(telegramId);
+
+            if (pendingCourseGroup == null) {
+                answerCallback(callbackQuery.getId(), "Jarayon topilmadi");
+                sendMessage(chatId, "❌ Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.adminMenuKeyboard());
+                return;
+            }
+
+            try {
+                CourseGroup courseGroup = new CourseGroup();
+                courseGroup.setCourseId(pendingCourseGroup.getCourseId());
+                courseGroup.setGroupName(pendingCourseGroup.getGroupName());
+                courseGroup.setDaysText(pendingCourseGroup.getDaysText());
+                courseGroup.setStartTime(pendingCourseGroup.getStartTime());
+                courseGroup.setEndTime(pendingCourseGroup.getEndTime());
+                courseGroup.setStartDate(pendingCourseGroup.getStartDate());
+                courseGroup.setEndDate(pendingCourseGroup.getEndDate());
+                courseGroup.setIsActive(true);
+
+                CourseGroup savedGroup = courseService.createCourseGroup(courseGroup);
+
+                sessionManager.clearPendingCourseGroup(telegramId);
+
+                answerCallback(callbackQuery.getId(), "Saqlandi ✅");
+
+                sendMessage(
+                        chatId,
+                        "✅ Yangi guruh muvaffaqiyatli yaratildi.\n"
+                                + "Guruh ID: " + (savedGroup != null ? savedGroup.getId() : "-"),
+                        KeyboardUtil.adminMenuKeyboard()
+                );
+            } catch (IllegalArgumentException e) {
+                answerCallback(callbackQuery.getId(), "Xatolik");
+                sendMessage(chatId, "❌ " + e.getMessage(), KeyboardUtil.adminMenuKeyboard());
+            } catch (Exception e) {
+                e.printStackTrace();
+                answerCallback(callbackQuery.getId(), "Xatolik");
+                sendMessage(chatId, "❌ Yangi guruhni saqlashda xatolik bo‘ldi.", KeyboardUtil.adminMenuKeyboard());
+            }
+
+            return;
+        }
+
         if (data.startsWith("course:")) {
             Long courseId = Long.parseLong(data.split(":")[1]);
+
+            PendingCourseGroup pendingCourseGroup = sessionManager.getPendingCourseGroup(telegramId);
+
+            if (sessionManager.isAdminAuthenticated(telegramId)
+                    && pendingCourseGroup != null
+                    && pendingCourseGroup.getCourseId() == null) {
+
+                Course selectedCourse = courseService.getCourseById(courseId);
+
+                if (selectedCourse == null) {
+                    answerCallback(callbackQuery.getId(), "❌ Kurs topilmadi");
+                    return;
+                }
+
+                pendingCourseGroup.setCourseId(courseId);
+                sessionManager.setUserState(telegramId, UserState.WAITING_ADMIN_NEW_GROUP_NAME);
+
+                if (callbackQuery.getMessage() != null) {
+                    clearInlineKeyboard(chatId, callbackQuery.getMessage().getMessageId());
+                }
+
+                answerCallback(callbackQuery.getId(), "Kurs tanlandi ✅");
+                sendMessage(chatId, "Yangi guruh nomini kiriting. Masalan: B6", KeyboardUtil.cancelKeyboard());
+                return;
+            }
+
             showCourseDetails(chatId, courseId);
             answerCallback(callbackQuery.getId(), "Kurs tanlandi ✅");
             return;
@@ -796,7 +931,24 @@ Bizning xizmatimizdan foydalanish uchun quyidagi bo‘limlardan birini tanlang:
                 || state == UserState.WAITING_APPLICATION_PHONE
                 || state == UserState.WAITING_APPLICATION_MESSAGE;
     }
+    private void startAdminAddGroupFlow(Long chatId, Long telegramId) {
+        List<Course> courses = courseService.getAllActiveCourses();
 
+        if (courses.isEmpty()) {
+            sendMessage(chatId, "❌ Aktiv kurslar topilmadi.", KeyboardUtil.adminMenuKeyboard());
+            return;
+        }
+
+        sessionManager.clearUserState(telegramId);
+        sessionManager.clearPendingCourseGroup(telegramId);
+        sessionManager.createPendingCourseGroup(telegramId);
+
+        sendMessage(
+                chatId,
+                "Yangi guruh qaysi kurs uchun yaratiladi? Kursni tanlang 👇",
+                KeyboardUtil.coursesKeyboard(courses)
+        );
+    }
     private boolean isBlockedDuringApplicationFlow(String text) {
         return BTN_COURSES.equals(text)
                 || BTN_PRICES.equals(text)
@@ -809,6 +961,241 @@ Bizning xizmatimizdan foydalanish uchun quyidagi bo‘limlardan birini tanlang:
                 || BTN_ADMIN_LOGOUT.equals(text)
                 || BTN_MAIN_MENU.equals(text)
                 || "/admin".equals(text);
+    }
+
+    private void handleAdminNewGroupName(Long chatId, Long telegramId, String text) {
+        PendingCourseGroup pendingCourseGroup = sessionManager.getPendingCourseGroup(telegramId);
+
+        if (pendingCourseGroup == null || pendingCourseGroup.getCourseId() == null) {
+            sessionManager.clearUserState(telegramId);
+            sessionManager.clearPendingCourseGroup(telegramId);
+            sendMessage(chatId, "❌ Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.adminMenuKeyboard());
+            return;
+        }
+
+        if (text.isBlank()) {
+            sendMessage(chatId, "❌ Guruh nomi bo‘sh bo‘lmasligi kerak. Qayta kiriting:", KeyboardUtil.cancelKeyboard());
+            return;
+        }
+
+        pendingCourseGroup.setGroupName(text.trim());
+        sessionManager.setUserState(telegramId, UserState.WAITING_ADMIN_NEW_GROUP_DAYS);
+
+        sendMessage(
+                chatId,
+                "Dars kunlarini kiriting.\nMasalan: Dushanba, Chorshanba, Juma",
+                KeyboardUtil.cancelKeyboard()
+        );
+    }
+
+    private void handleAdminNewGroupDays(Long chatId, Long telegramId, String text) {
+        PendingCourseGroup pendingCourseGroup = sessionManager.getPendingCourseGroup(telegramId);
+
+        if (pendingCourseGroup == null) {
+            sessionManager.clearUserState(telegramId);
+            sendMessage(chatId, "❌ Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.adminMenuKeyboard());
+            return;
+        }
+
+        if (text.isBlank()) {
+            sendMessage(chatId, "❌ Dars kunlari bo‘sh bo‘lmasligi kerak. Qayta kiriting:", KeyboardUtil.cancelKeyboard());
+            return;
+        }
+
+        pendingCourseGroup.setDaysText(text.trim());
+        sessionManager.setUserState(telegramId, UserState.WAITING_ADMIN_NEW_GROUP_START_TIME);
+
+        sendMessage(
+                chatId,
+                "Boshlanish vaqtini kiriting.\nFormat: HH:mm\nMasalan: 19:00",
+                KeyboardUtil.cancelKeyboard()
+        );
+    }
+
+    private void handleAdminNewGroupStartTime(Long chatId, Long telegramId, String text) {
+        PendingCourseGroup pendingCourseGroup = sessionManager.getPendingCourseGroup(telegramId);
+
+        if (pendingCourseGroup == null) {
+            sessionManager.clearUserState(telegramId);
+            sendMessage(chatId, "❌ Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.adminMenuKeyboard());
+            return;
+        }
+
+        LocalTime startTime = parseHourMinute(text);
+
+        if (startTime == null) {
+            sendMessage(
+                    chatId,
+                    "❌ Vaqt formati noto‘g‘ri.\nFormat: HH:mm\nMasalan: 19:00",
+                    KeyboardUtil.cancelKeyboard()
+            );
+            return;
+        }
+
+        pendingCourseGroup.setStartTime(startTime);
+        sessionManager.setUserState(telegramId, UserState.WAITING_ADMIN_NEW_GROUP_END_TIME);
+
+        sendMessage(
+                chatId,
+                "Tugash vaqtini kiriting.\nFormat: HH:mm\nMasalan: 20:30",
+                KeyboardUtil.cancelKeyboard()
+        );
+    }
+
+    private void handleAdminNewGroupEndTime(Long chatId, Long telegramId, String text) {
+        PendingCourseGroup pendingCourseGroup = sessionManager.getPendingCourseGroup(telegramId);
+
+        if (pendingCourseGroup == null || pendingCourseGroup.getStartTime() == null) {
+            sessionManager.clearUserState(telegramId);
+            sessionManager.clearPendingCourseGroup(telegramId);
+            sendMessage(chatId, "❌ Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.adminMenuKeyboard());
+            return;
+        }
+
+        LocalTime endTime = parseHourMinute(text);
+
+        if (endTime == null) {
+            sendMessage(
+                    chatId,
+                    "❌ Vaqt formati noto‘g‘ri.\nFormat: HH:mm\nMasalan: 20:30",
+                    KeyboardUtil.cancelKeyboard()
+            );
+            return;
+        }
+
+        if (!endTime.isAfter(pendingCourseGroup.getStartTime())) {
+            sendMessage(
+                    chatId,
+                    "❌ Tugash vaqti boshlanish vaqtidan keyin bo‘lishi kerak. Qayta kiriting:",
+                    KeyboardUtil.cancelKeyboard()
+            );
+            return;
+        }
+
+        pendingCourseGroup.setEndTime(endTime);
+        sessionManager.setUserState(telegramId, UserState.WAITING_ADMIN_NEW_GROUP_START_DATE);
+
+        sendMessage(
+                chatId,
+                "Boshlanish sanasini kiriting.\nFormat: yyyy-MM-dd\nMasalan: 2026-03-20",
+                KeyboardUtil.cancelKeyboard()
+        );
+    }
+
+    private void handleAdminNewGroupStartDate(Long chatId, Long telegramId, String text) {
+        PendingCourseGroup pendingCourseGroup = sessionManager.getPendingCourseGroup(telegramId);
+
+        if (pendingCourseGroup == null) {
+            sessionManager.clearUserState(telegramId);
+            sendMessage(chatId, "❌ Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.adminMenuKeyboard());
+            return;
+        }
+
+        LocalDate startDate = parseIsoDate(text);
+
+        if (startDate == null) {
+            sendMessage(
+                    chatId,
+                    "❌ Sana formati noto‘g‘ri.\nFormat: yyyy-MM-dd\nMasalan: 2026-03-20",
+                    KeyboardUtil.cancelKeyboard()
+            );
+            return;
+        }
+
+        pendingCourseGroup.setStartDate(startDate);
+        sessionManager.setUserState(telegramId, UserState.WAITING_ADMIN_NEW_GROUP_END_DATE);
+
+        sendMessage(
+                chatId,
+                "Tugash sanasini kiriting.\nFormat: yyyy-MM-dd\nMasalan: 2026-06-20",
+                KeyboardUtil.cancelKeyboard()
+        );
+    }
+
+    private void handleAdminNewGroupEndDate(Long chatId, Long telegramId, String text) {
+        PendingCourseGroup pendingCourseGroup = sessionManager.getPendingCourseGroup(telegramId);
+
+        if (pendingCourseGroup == null || pendingCourseGroup.getStartDate() == null) {
+            sessionManager.clearUserState(telegramId);
+            sessionManager.clearPendingCourseGroup(telegramId);
+            sendMessage(chatId, "❌ Jarayon uzilib qoldi. Qaytadan boshlang.", KeyboardUtil.adminMenuKeyboard());
+            return;
+        }
+
+        LocalDate endDate = parseIsoDate(text);
+
+        if (endDate == null) {
+            sendMessage(
+                    chatId,
+                    "❌ Sana formati noto‘g‘ri.\nFormat: yyyy-MM-dd\nMasalan: 2026-06-20",
+                    KeyboardUtil.cancelKeyboard()
+            );
+            return;
+        }
+
+        if (endDate.isBefore(pendingCourseGroup.getStartDate())) {
+            sendMessage(
+                    chatId,
+                    "❌ Tugash sanasi boshlanish sanasidan oldin bo‘lishi mumkin emas. Qayta kiriting:",
+                    KeyboardUtil.cancelKeyboard()
+            );
+            return;
+        }
+
+        pendingCourseGroup.setEndDate(endDate);
+
+        sessionManager.clearUserState(telegramId);
+
+        sendMessage(
+                chatId,
+                buildPendingCourseGroupPreview(pendingCourseGroup),
+                KeyboardUtil.adminGroupConfirmKeyboard()
+        );
+    }
+    private LocalTime parseHourMinute(String text) {
+        try {
+            return LocalTime.parse(text.trim() + ":00");
+        } catch (Exception e) {
+            try {
+                return LocalTime.parse(text.trim());
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+    }
+
+    private LocalDate parseIsoDate(String text) {
+        try {
+            return LocalDate.parse(text.trim());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String buildPendingCourseGroupPreview(PendingCourseGroup pendingCourseGroup) {
+        Course course = courseService.getCourseById(pendingCourseGroup.getCourseId());
+        String courseName = course != null ? escapeHtml(course.getName()) : String.valueOf(pendingCourseGroup.getCourseId());
+
+        StringBuilder text = new StringBuilder();
+        text.append("✅ Yangi guruh ma’lumotlari qabul qilindi:\n\n");
+        text.append("📚 Kurs: ").append(courseName).append("\n");
+        text.append("👥 Guruh: ").append(escapeHtml(pendingCourseGroup.getGroupName())).append("\n");
+        text.append("🗓 Kunlar: ").append(escapeHtml(pendingCourseGroup.getDaysText())).append("\n");
+        text.append("🕒 Vaqt: ").append(pendingCourseGroup.getStartTime()).append(" - ").append(pendingCourseGroup.getEndTime()).append("\n");
+        text.append("📅 Muddat: ").append(pendingCourseGroup.getStartDate()).append(" - ").append(pendingCourseGroup.getEndDate()).append("\n\n");
+        text.append("Keyingi stepda bu ma’lumotni bazaga saqlaymiz.");
+
+        return text.toString();
+    }
+    private boolean isAdminNewGroupFlowActive(Long telegramId) {
+        UserState state = sessionManager.getUserState(telegramId);
+        return state == UserState.WAITING_ADMIN_NEW_GROUP_NAME
+                || state == UserState.WAITING_ADMIN_NEW_GROUP_DAYS
+                || state == UserState.WAITING_ADMIN_NEW_GROUP_START_TIME
+                || state == UserState.WAITING_ADMIN_NEW_GROUP_END_TIME
+                || state == UserState.WAITING_ADMIN_NEW_GROUP_START_DATE
+                || state == UserState.WAITING_ADMIN_NEW_GROUP_END_DATE
+                || sessionManager.getPendingCourseGroup(telegramId) != null;
     }
     private void answerCallback(String callbackId, String text) {
         AnswerCallbackQuery answer = new AnswerCallbackQuery();
