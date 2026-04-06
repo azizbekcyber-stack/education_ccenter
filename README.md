@@ -31,4 +31,4 @@ Designed and developed the backend logic, database interaction, and admin/user w
 The bot is deployed and currently working.
 
 ## Demo
-Live bot: [Telegram Bot](@braindevelopment_bot)
+Live bot: [Telegram Bot](https://t.me/braindevelopment_bot)
